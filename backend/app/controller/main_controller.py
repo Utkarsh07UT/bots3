@@ -11,13 +11,12 @@ import os
 AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "https://three-1-1oz2.onrender.com")
 CONFIDENCE_THRESHOLD = 0.7
 
-# All 6 specialist bots active for multi-bot threat detection
+# Bots currently known to work; add scanning_bot once fixed
 ACTIVE_BOTS = [
     "ddos_bot",
     "beaconing_bot",
     "dga_dns_bot",
     "encrypted_malware_bot",
-    "scanning_bot",
     "exfiltration_bot",
 ]
 
