@@ -34,18 +34,19 @@ const SVG_WIDTH = 960;
 const SVG_HEIGHT = 480;
 
 // Threat type color lookup per requirement:
-// Ransomware=blue (#3B82F6), Phishing=red (#EF4444), Brute Force=orange (#F97316), DDoS=yellow (#EAB308), Malware=green (#10B981)
+// Ransomware=blue (#3B82F6), Phishing=red (#EF4444), Brute Force=orange (#F97316), DDoS=yellow (#EAB308), Malware=green (#10B981), Benign=slate (#94A3B8)
 const threatTypeColors = {
   Ransomware: "#3B82F6",
   Phishing: "#EF4444",
   "Brute Force": "#F97316",
   DDoS: "#EAB308",
   Malware: "#10B981",
+  Benign: "#94A3B8",
 };
 
 export const WorldMapWidget = ({ isLoading, alerts = [] }) => {
   // Dynamic Map Data Generation
-  const dynamicSOCDestination = { coordinates: [8.6821, 50.1109] }; // Frankfurt, default SOC
+  const dynamicSOCDestination = { coordinates: [78.9629, 20.5937] }; // India, default SOC
   
   const { dynamicAttackOrigins, dynamicAttackVectors } = useMemo(() => {
     if (!alerts || alerts.length === 0) {
@@ -56,17 +57,36 @@ export const WorldMapWidget = ({ isLoading, alerts = [] }) => {
     
     const getColor = (type) => {
       const t = (type || "").toLowerCase();
+      if (t.includes("benign")) return "#94A3B8";
       if (t.includes("ransom")) return "#3B82F6";
       if (t.includes("phish")) return "#EF4444";
-      if (t.includes("brute") || t.includes("c2")) return "#F97316";
+      if (t.includes("brute") || t.includes("c2") || t.includes("beaconing")) return "#F97316";
       if (t.includes("ddos") || t.includes("flood")) return "#EAB308";
       return "#10B981"; // malware/default
     };
 
     const vectors = [];
 
+    const MAJOR_ORIGINS = [
+      { country: "Russia", flag: "🇷🇺", coordinates: [37.6173, 55.7558], code: "RU", asn: "AS12389 Rostelecom" },
+      { country: "China", flag: "🇨🇳", coordinates: [116.4074, 39.9042], code: "CN", asn: "AS4134 Chinanet" },
+      { country: "United States", flag: "🇺🇸", coordinates: [-77.0369, 38.9072], code: "US", asn: "AS7922 Comcast" },
+      { country: "Brazil", flag: "🇧🇷", coordinates: [-47.9292, -15.7801], code: "BR", asn: "AS28573 Claro" },
+      { country: "Iran", flag: "🇮🇷", coordinates: [51.3890, 35.6892], code: "IR", asn: "AS12880 ITC" },
+      { country: "North Korea", flag: "🇰🇵", coordinates: [125.7625, 39.0392], code: "KP", asn: "AS131279 Ryugyong" },
+      { country: "Germany", flag: "🇩🇪", coordinates: [13.4050, 52.5200], code: "DE", asn: "AS3320 DTAG" },
+      { country: "Vietnam", flag: "🇻🇳", coordinates: [105.8342, 21.0278], code: "VN", asn: "AS45899 VNPT" },
+      { country: "Nigeria", flag: "🇳🇬", coordinates: [3.3792, 6.5244], code: "NG", asn: "AS36873 Globacom" },
+      { country: "Ukraine", flag: "🇺🇦", coordinates: [30.5238, 50.4501], code: "UA", asn: "AS15895 Kyivstar" },
+      { country: "South Korea", flag: "🇰🇷", coordinates: [126.9780, 37.5665], code: "KR", asn: "AS4766 Korea Telecom" },
+      { country: "Japan", flag: "🇯🇵", coordinates: [139.6917, 35.6895], code: "JP", asn: "AS2516 KDDI" },
+      { country: "United Kingdom", flag: "🇬🇧", coordinates: [-0.1276, 51.5074], code: "GB", asn: "AS2856 BT" },
+      { country: "Netherlands", flag: "🇳🇱", coordinates: [4.9041, 52.3676], code: "NL", asn: "AS1136 KPN" },
+      { country: "Singapore", flag: "🇸🇬", coordinates: [103.8198, 1.3521], code: "SG", asn: "AS7473 SingTel" },
+    ];
+
     alerts.forEach((alert) => {
-      // Deterministic pseudo-random lat/lng based on source IP string
+      // Deterministic pseudo-random location based on source IP string
       let hash = 0;
       const ip = alert.source || "0.0.0.0";
       for (let i = 0; i < ip.length; i++) {
@@ -74,46 +94,45 @@ export const WorldMapWidget = ({ isLoading, alerts = [] }) => {
         hash |= 0;
       }
       
-      const pseudoLat = (Math.abs(hash) % 120) - 60; // -60 to +60
-      const pseudoLng = (Math.abs(hash * 31) % 360) - 180; // -180 to +180
-      
-      const countryCode = "UN"; // Unknown
-      const originKey = `${pseudoLng},${pseudoLat}`;
+      const originIndex = Math.abs(hash) % MAJOR_ORIGINS.length;
+      const origin = MAJOR_ORIGINS[originIndex];
+      const originKey = `${origin.code}`;
 
       if (!originsMap[originKey]) {
         originsMap[originKey] = {
-          country: "Unknown Region",
-          code: countryCode,
-          flag: "🌍",
+          country: origin.country,
+          code: origin.code,
+          flag: origin.flag,
           count: 0,
           threatType: alert.attackType,
           color: getColor(alert.attackType),
-          coordinates: [pseudoLng, pseudoLat],
-          topAsn: "Unknown ASN",
+          coordinates: origin.coordinates,
+          topAsn: origin.asn,
           recentIoc: ip,
         };
       }
       originsMap[originKey].count += 1;
-
-      vectors.push({
-        id: alert.id,
-        originName: "Unknown Region",
-        originCoords: [pseudoLng, pseudoLat],
-        destCoords: dynamicSOCDestination.coordinates,
-        threatType: alert.attackType,
-        severity: alert.severity.toLowerCase(),
-        color: getColor(alert.attackType),
-        ip: ip,
-        target: alert.destination,
-        speed: "live",
-      });
     });
 
     const origins = Object.values(originsMap).sort((a, b) => b.count - a.count);
     const total = alerts.length;
     origins.forEach((o) => (o.percentage = ((o.count / total) * 100).toFixed(1)));
 
-    return { dynamicAttackOrigins: origins.slice(0, 15), dynamicAttackVectors: vectors.slice(0, 50) }; // cap vectors for performance
+    // Generate exactly one trajectory vector per origin country
+    const uniqueVectors = origins.map((origin) => ({
+      id: origin.code,
+      originName: origin.country,
+      originCoords: origin.coordinates,
+      destCoords: dynamicSOCDestination.coordinates,
+      threatType: origin.threatType,
+      severity: "high", // proxy severity
+      color: origin.color,
+      ip: origin.recentIoc,
+      target: "SOC HQ",
+      speed: "live",
+    }));
+
+    return { dynamicAttackOrigins: origins.slice(0, 15), dynamicAttackVectors: uniqueVectors }; 
   }, [alerts]);
 
   // Pan & Zoom state
@@ -130,6 +149,20 @@ export const WorldMapWidget = ({ isLoading, alerts = [] }) => {
   const [isGlobeView, setIsGlobeView] = useState(false); // Toggle between Natural Earth & Orthographic
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isTopOriginsCollapsed, setIsTopOriginsCollapsed] = useState(false);
+  const [globeRotation, setGlobeRotation] = useState(0);
+
+  // Rotate globe when in globe view
+  useEffect(() => {
+    let animationFrame;
+    if (isGlobeView) {
+      const rotate = () => {
+        setGlobeRotation((prev) => (prev + 0.3) % 360);
+        animationFrame = requestAnimationFrame(rotate);
+      };
+      animationFrame = requestAnimationFrame(rotate);
+    }
+    return () => cancelAnimationFrame(animationFrame);
+  }, [isGlobeView]);
 
   // Interactive Hover and Popover States
   const [hoveredOrigin, setHoveredOrigin] = useState(null);
@@ -163,7 +196,8 @@ export const WorldMapWidget = ({ isLoading, alerts = [] }) => {
         .geoOrthographic()
         .scale(190)
         .translate([SVG_WIDTH / 2, SVG_HEIGHT / 2 + 10])
-        .clipAngle(90);
+        .clipAngle(90)
+        .rotate([globeRotation, -10]);
     } else {
       proj = d3Geo
         .geoNaturalEarth1()
@@ -185,7 +219,7 @@ export const WorldMapWidget = ({ isLoading, alerts = [] }) => {
       projection: proj,
       geoPath: pathGen,
     };
-  }, [isGlobeView]);
+  }, [isGlobeView, globeRotation]);
 
   // Projected 2D screen positions
   const projectedDestination = useMemo(() => {
@@ -423,7 +457,7 @@ export const WorldMapWidget = ({ isLoading, alerts = [] }) => {
         <svg
           viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
           className="w-full h-full max-h-[500px]"
-          preserveAspectRatio="xMidYMid meet"
+          preserveAspectRatio="xMidYMid slice"
           style={{
             transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
             transformOrigin: "center center",
@@ -627,7 +661,7 @@ export const WorldMapWidget = ({ isLoading, alerts = [] }) => {
             })}
           </g>
 
-          {/* 5. CENTRAL SOC DEFENSE HUB (Frankfurt Core Hub) */}
+          {/* 5. CENTRAL SOC DEFENSE HUB (India Core Hub) */}
           <g
             className="defense-soc-core cursor-pointer interactive-node"
             transform={`translate(${projectedDestination.x}, ${projectedDestination.y})`}
@@ -635,7 +669,7 @@ export const WorldMapWidget = ({ isLoading, alerts = [] }) => {
               e.stopPropagation();
               setSelectedNodeDetails({
                 type: "destination",
-                title: "🇩🇪 Global Defense Core (Frankfurt HQ)",
+                title: "🇮🇳 Global Defense Core (India HQ)",
                 count: 17483,
                 threatType: "Multi-vector Shield",
                 lastSeen: "Real-time Stream",
@@ -694,7 +728,7 @@ export const WorldMapWidget = ({ isLoading, alerts = [] }) => {
                 textAnchor="middle"
                 fontFamily="Inter, sans-serif"
               >
-                SOC CORE 🇩🇪
+                SOC CORE 🇮🇳
               </text>
             </g>
           </g>
@@ -923,6 +957,9 @@ export const WorldMapWidget = ({ isLoading, alerts = [] }) => {
       <div className="px-5 py-2.5 bg-slate-50 dark:bg-[#12151C] border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between text-xs text-slate-500 dark:text-slate-400 gap-2">
         <div className="flex items-center gap-4 flex-wrap">
           <span className="text-[11px] font-bold text-slate-400 uppercase">Threat Legend:</span>
+          <span className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300">
+            <span className="w-2 h-2 rounded-full bg-[#94A3B8] shadow-xs" /> Benign (Slate)
+          </span>
           <span className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300">
             <span className="w-2 h-2 rounded-full bg-[#3B82F6] shadow-xs" /> Ransomware (Blue)
           </span>

@@ -135,74 +135,79 @@ export const DashboardPage = () => {
             variants={containerVariants}
             initial="hidden"
             animate="show"
-            className="space-y-6"
+            className="flex flex-col xl:flex-row gap-6"
           >
-            {/* ROW OF 5 STAT CARDS */}
-            <motion.section variants={itemVariants} aria-label="Security Operations Key Metrics">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5">
-                {stats.map((stat) => (
-                  <StatCard
-                    key={stat.id}
-                    stat={stat}
-                    isLoading={isLoading || isLoadingSkeletons}
-                    onClick={() => {
-                      if (stat.id === "critical_incidents") setActiveTab("incidents");
-                      if (stat.id === "active_threats") setActiveTab("threat-feed");
-                    }}
-                  />
-                ))}
-              </div>
+            {/* LEFT SIDEBAR: STAT CARDS (Vertically) */}
+            <motion.section 
+              variants={itemVariants} 
+              aria-label="Security Operations Key Metrics"
+              className="xl:w-64 flex flex-col gap-3 shrink-0"
+            >
+              {stats.map((stat) => (
+                <StatCard
+                  key={stat.id}
+                  stat={stat}
+                  isLoading={isLoading || isLoadingSkeletons}
+                  compact={true}
+                  onClick={() => {
+                    if (stat.id === "critical_incidents") setActiveTab("incidents");
+                    if (stat.id === "active_threats") setActiveTab("threat-feed");
+                  }}
+                />
+              ))}
             </motion.section>
 
-            {/* TWO-COLUMN: GLOBAL THREAT MAP & LIVE THREAT FEED */}
-            <motion.section variants={itemVariants} aria-label="Live Threat Map and Telemetry Feed">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-                
-                {/* Left (Larger): Global Threat Activity World Map */}
-                <div className="lg:col-span-7 xl:col-span-8 flex flex-col">
-                  <WorldMapWidget isLoading={isLoading || isLoadingSkeletons} alerts={feed} />
+            {/* RIGHT MAIN AREA */}
+            <div className="flex-1 flex flex-col gap-6 min-w-0">
+              {/* TWO-COLUMN: GLOBAL THREAT MAP & LIVE THREAT FEED */}
+              <motion.section variants={itemVariants} aria-label="Live Threat Map and Telemetry Feed">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                  
+                  {/* Left (Larger): Global Threat Activity World Map */}
+                  <div className="lg:col-span-8 flex flex-col">
+                    <WorldMapWidget isLoading={isLoading || isLoadingSkeletons} alerts={feed} />
+                  </div>
+
+                  {/* Right (Smaller): Live Threats Feed */}
+                  <div className="lg:col-span-4 flex flex-col">
+                    <ThreatFeed
+                      isLoading={isLoading || isLoadingSkeletons}
+                      items={feed}
+                      onSelectThreat={(threat) => {
+                        showToast(`Opened telemetry investigation for ${threat.title} (${threat.source})`, "info");
+                      }}
+                    />
+                  </div>
+
                 </div>
+              </motion.section>
 
-                {/* Right (Smaller): Live Threats Feed */}
-                <div className="lg:col-span-5 xl:col-span-4 flex flex-col">
-                  <ThreatFeed
-                    isLoading={isLoading || isLoadingSkeletons}
-                    items={feed}
-                    onSelectThreat={(threat) => {
-                      showToast(`Opened telemetry investigation for ${threat.title} (${threat.source})`, "info");
-                    }}
-                  />
+              {/* BOTTOM ROW: THREE COLUMNS */}
+              <motion.section variants={itemVariants} aria-label="Trend Analytics and Security Insights">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  
+                  {/* Threat Trend 24h Area Chart */}
+                  <div className="flex flex-col">
+                    <ThreatTrendChart isLoading={isLoading || isLoadingSkeletons} data={trend} />
+                  </div>
+
+                  {/* Threat Distribution Donut Chart */}
+                  <div className="flex flex-col">
+                    <ThreatDistributionChart isLoading={isLoading || isLoadingSkeletons} data={distribution} total={feed.length} />
+                  </div>
+
+                  {/* Security Insight Panel */}
+                  <div className="flex flex-col">
+                    <SecurityInsightPanel
+                      isLoading={isLoading || isLoadingSkeletons}
+                      insight={insight}
+                      onActionToggle={handleActionToggle}
+                    />
+                  </div>
+
                 </div>
-
-              </div>
-            </motion.section>
-
-            {/* BOTTOM ROW: THREE COLUMNS */}
-            <motion.section variants={itemVariants} aria-label="Trend Analytics and Security Insights">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                
-                {/* Threat Trend 24h Area Chart */}
-                <div className="flex flex-col">
-                  <ThreatTrendChart isLoading={isLoading || isLoadingSkeletons} data={trend} />
-                </div>
-
-                {/* Threat Distribution Donut Chart */}
-                <div className="flex flex-col">
-                  <ThreatDistributionChart isLoading={isLoading || isLoadingSkeletons} data={distribution} total={feed.length} />
-                </div>
-
-                {/* Security Insight Panel */}
-                <div className="flex flex-col">
-                  <SecurityInsightPanel
-                    isLoading={isLoading || isLoadingSkeletons}
-                    insight={insight}
-                    onActionToggle={handleActionToggle}
-                  />
-                </div>
-
-              </div>
-            </motion.section>
-
+              </motion.section>
+            </div>
           </motion.div>
         )}
 
@@ -210,11 +215,11 @@ export const DashboardPage = () => {
         {activeTab === "threat-feed" && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-              <div className="lg:col-span-5">
-                <ThreatFeed isLoading={isLoading || isLoadingSkeletons} items={feed} />
-              </div>
-              <div className="lg:col-span-7">
+              <div className="lg:col-span-8">
                 <WorldMapWidget isLoading={isLoading || isLoadingSkeletons} alerts={feed} />
+              </div>
+              <div className="lg:col-span-4">
+                <ThreatFeed isLoading={isLoading || isLoadingSkeletons} items={feed} />
               </div>
             </div>
           </div>

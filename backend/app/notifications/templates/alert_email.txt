@@ -1,0 +1,47 @@
+================================================================================
+[ THETHIRDEYE - CYBER THREAT OPERATIONS CORE ]
+================================================================================
+[{{ alert.severity }}] {{ alert.title }}
+================================================================================
+
+Description: {{ alert.description }}
+
+[ INCIDENT TELEMETRY ]
+- Alert ID:              {{ alert.alert_id }}
+- Attack Classification: {{ alert.attack_type }}
+- Score Fusion Conf:     {{ "%.2f"|format(alert.confidence_score|float * 100) }}%
+- Source IP:             {{ alert.source_ip }}
+- Target IP:             {{ alert.target_ip }}{% if alert.target_port %}:{{ alert.target_port }}{% endif %}
+- Severity Level:        {{ alert.severity }}
+- Timestamp (UTC):       {{ timestamp_utc }}
+
+{% if alert.contributing_bots %}
+[ CONTRIBUTING AI SPECIALISTS ]
+{% for bot in alert.contributing_bots %}
+- {{ bot }}: {% if alert.bot_scores and alert.bot_scores.get(bot) %}{{ "%.1f"|format(alert.bot_scores.get(bot)|float * 100) }}% confidence{% else %}Flagged{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if alert.evidence %}
+[ FLOW EVIDENCE ]
+{% for key, val in alert.evidence.items() %}
+{% if key not in ['tx_hash', 'fused_confidence'] %}
+- {{ key }}: {{ val }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if alert.blockchain_tx_hash or (alert.evidence and alert.evidence.get('tx_hash')) %}
+{% set tx = alert.blockchain_tx_hash or alert.evidence.get('tx_hash') %}
+[ BLOCKCHAIN AUDIT PROOF ]
+- Transaction Hash: {{ tx }}
+{% endif %}
+
+[ ACTION REQUIRED ]
+View live alert in SOC Dashboard:
+{{ incident_url }}
+
+--------------------------------------------------------------------------------
+This is an automated dispatch from TheThirdEYE Cyber Threat Operations Center.
+Notification Provider: {{ provider_name }} • {{ timestamp_utc }}
+================================================================================

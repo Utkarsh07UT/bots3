@@ -90,9 +90,9 @@ export const mockStatsData = [
 // Real geographic coordinates [longitude, latitude] for global SOC hubs and threat origins
 export const mockSOCDestination = {
   id: "hq-frankfurt",
-  name: "Global Defense Core (Frankfurt HQ)",
-  city: "Frankfurt",
-  country: "Germany",
+  name: "Global Defense Core (India HQ)",
+  city: "India",
+  country: "India",
   flag: "🇩🇪",
   coordinates: [8.6821, 50.1109], // [lng, lat]
   status: "Defending",
@@ -145,7 +145,7 @@ export const mockTopAttackOrigins = [
     recentIoc: "103.24.120.88",
   },
   {
-    country: "Germany",
+    country: "India",
     code: "DE",
     flag: "🇩🇪",
     count: 872,

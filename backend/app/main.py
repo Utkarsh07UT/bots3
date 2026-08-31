@@ -1,3 +1,4 @@
+# Cache bust: force Render to recompile this file
 import asyncio
 import os
 
@@ -10,6 +11,9 @@ from sqlalchemy.orm import Session
 from app.api.routes.alerts import router as alerts_router
 from app.api.routes.bots import router as bots_router
 from app.api.routes.flows import router as flows_router
+from app.api.routes.blockchain import router as blockchain_router
+from app.api.routes.mode import router as mode_router
+from app.api.routes.notifications import router as notifications_router
 from app.db.models import NetworkFlow
 from app.db.session import SessionLocal, get_db
 from app.services.bot_health import refresh_bot_metrics
@@ -19,13 +23,21 @@ app = FastAPI(title="Cyber Threat Detection API")
 app.include_router(alerts_router, prefix="/api")
 app.include_router(bots_router, prefix="/api")
 app.include_router(flows_router, prefix="/api")
+app.include_router(blockchain_router, prefix="/api/blockchain")
+app.include_router(mode_router, prefix="/api/mode")
+app.include_router(notifications_router, prefix="/api")
 
+default_origins = [
+    "https://cyber-threat-detection.vercel.app",
+    "https://cyber-threat-detection.onrender.com",
+]
 configured_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "").split(",") if origin.strip()]
-allowed_origins = configured_origins or ["http://localhost:5173", "http://localhost:4173"]
+allowed_origins = list(set(default_origins + configured_origins))
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.onrender\.com",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -77,11 +89,25 @@ async def flow_stream(websocket: WebSocket):
         return
 
 
+from app.db.session import SessionLocal, get_db, Base, engine
+from app.services.pipeline import process_flows_pipeline
+
+
 @app.on_event("startup")
-async def start_health_monitor() -> None:
+async def start_background_tasks() -> None:
+    # Ensure database schema exists (useful for SQLite local dev or new DBs)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception:
+        pass
+
     async def monitor() -> None:
         while True:
-            await asyncio.to_thread(refresh_bot_metrics)
-            await asyncio.sleep(60)
+            try:
+                await asyncio.to_thread(refresh_bot_metrics)
+            except Exception:
+                pass
+            await asyncio.sleep(30)
 
     asyncio.create_task(monitor())
+    asyncio.create_task(process_flows_pipeline())

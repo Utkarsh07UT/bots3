@@ -8,7 +8,7 @@ for line in lines:
         output.append("\n# Backend Background Worker URL\n")
         output.append("VITE_BACKGROUND_WORKER_URL=https://cyber-threat-detection-background-worker.onrender.com\n")
         output.append("\n# AI Model API URL\n")
-        output.append("VITE_AI_SERVICE_URL=https://three-1-1oz2.onrender.com\n")
+        output.append("VITE_AI_SERVICE_URL=https://bots3-a8ta.onrender.com\n")
     else:
         output.append(line)
 

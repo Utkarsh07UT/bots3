@@ -1,3 +1,4 @@
+import { sendTestNotification } from "../../api/backend";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { ThemeToggle } from "./ThemeToggle";
+import { ModeToggle } from "./ModeToggle";
 import { Tooltip } from "../common/Tooltip";
 import { navTabs } from "../../data/mockData";
 
@@ -30,6 +32,7 @@ export const Navbar = ({ activeTab, onTabChange, activeIncidents = 0 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [isTestLoading, setIsTestLoading] = useState(false);
 
   const [notifications, setNotifications] = useState([
     {
@@ -68,6 +71,19 @@ export const Navbar = ({ activeTab, onTabChange, activeIncidents = 0 }) => {
     // TODO: replace with actual Supabase client call — supabase.auth.signOut()
     await signOut();
     navigate("/login");
+  };
+
+  const handleTestNotification = async () => {
+    setIsTestLoading(true);
+    try {
+      const email = user?.email || "dark@thethirdeye.sec";
+      await sendTestNotification(email, "console", "HIGH");
+      alert(`Test notification sent successfully to ${email}!`);
+    } catch (e) {
+      alert(`Failed to send test notification: ${e.message}`);
+    } finally {
+      setIsTestLoading(false);
+    }
   };
 
   const userName = user?.user_metadata?.full_name || "DarkTheUnk";
@@ -146,14 +162,8 @@ export const Navbar = ({ activeTab, onTabChange, activeIncidents = 0 }) => {
           {/* RIGHT: Live Pulse, Theme Toggle, Notification Bell, User Avatar */}
           <div className="flex items-center gap-2.5 sm:gap-3">
             
-            {/* Live Telemetry Pulse */}
-            <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400 text-xs font-bold shadow-xs">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span className="tracking-wide">LIVE TELEMETRY</span>
-            </div>
+            {/* Live Telemetry Pulse / Mode Toggle */}
+            <ModeToggle />
 
             {/* THEME TOGGLE BUTTON (Sun/Moon) */}
             <ThemeToggle />
@@ -307,6 +317,13 @@ export const Navbar = ({ activeTab, onTabChange, activeIncidents = 0 }) => {
                     </button>
                     <button className="w-full px-4 py-2 text-left text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-2.5">
                       <ShieldCheck className="w-4 h-4 text-slate-400" /> SOAR Automation Rules
+                    </button>
+                    <button 
+                      onClick={handleTestNotification}
+                      disabled={isTestLoading}
+                      className="w-full px-4 py-2 text-left text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-2.5"
+                    >
+                      <Bell className="w-4 h-4 text-slate-400" /> {isTestLoading ? "Sending..." : "Test Email Notification"}
                     </button>
                   </div>
 

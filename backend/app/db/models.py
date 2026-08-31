@@ -126,3 +126,39 @@ class DNSQuery(Base):
     is_tunneling = Column(Boolean, nullable=False, default=False)
     tunneling_score = Column(Numeric(5, 4), default=0.0)
     timestamp = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
+
+
+class NotificationPreference(Base):
+    __tablename__ = "notification_preferences"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String(255), nullable=False, unique=True)
+    name = Column(String(128), nullable=True)
+    is_enabled = Column(Boolean, nullable=False, default=True)
+    min_severity = Column(String(20), nullable=False, default="MEDIUM")  # CRITICAL, HIGH, MEDIUM, LOW
+    notify_critical = Column(Boolean, nullable=False, default=True)
+    notify_high = Column(Boolean, nullable=False, default=True)
+    notify_medium = Column(Boolean, nullable=False, default=True)
+    notify_low = Column(Boolean, nullable=False, default=False)
+    quiet_hours_enabled = Column(Boolean, nullable=False, default=False)
+    quiet_hours_start_utc = Column(Integer, nullable=False, default=22)  # 22:00 UTC
+    quiet_hours_end_utc = Column(Integer, nullable=False, default=6)     # 06:00 UTC
+    rate_limit_per_hour = Column(Integer, nullable=False, default=20)
+    created_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+
+class NotificationLog(Base):
+    __tablename__ = "notification_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    alert_id = Column(String(64), nullable=True)
+    recipient = Column(String(255), nullable=False)
+    channel = Column(String(32), nullable=False, default="email")  # email, slack, discord, webhook
+    provider = Column(String(32), nullable=False, default="smtp")  # smtp, resend, sendgrid, console
+    status = Column(String(32), nullable=False)  # SUCCESS, FAILED, RATE_LIMITED, QUIET_HOURS, SKIPPED
+    subject = Column(String(255), nullable=True)
+    error_message = Column(String, nullable=True)
+    retry_count = Column(Integer, nullable=False, default=0)
+    sent_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
+

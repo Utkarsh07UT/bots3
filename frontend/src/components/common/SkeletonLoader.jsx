@@ -1,13 +1,13 @@
 import React from "react";
 
-export const StatCardSkeleton = () => (
-  <div className="bg-white dark:bg-[#1A1E27] rounded-2xl p-5 border border-slate-100 dark:border-white/[0.08] shadow-card dark:shadow-card-dark shimmer-animation">
-    <div className="flex justify-between items-start mb-4">
-      <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800" />
-      <div className="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800" />
+export const StatCardSkeleton = ({ compact }) => (
+  <div className={`bg-white dark:bg-[#1A1E27] rounded-2xl ${compact ? 'p-3' : 'p-5'} border border-slate-100 dark:border-white/[0.08] shadow-card dark:shadow-card-dark shimmer-animation`}>
+    <div className={`flex justify-between items-start ${compact ? 'mb-2' : 'mb-4'}`}>
+      <div className={`${compact ? 'w-8 h-8' : 'w-10 h-10'} rounded-xl bg-slate-100 dark:bg-slate-800`} />
+      <div className={`${compact ? 'w-4 h-4' : 'w-5 h-5'} rounded bg-slate-100 dark:bg-slate-800`} />
     </div>
-    <div className="w-24 h-4 bg-slate-100 dark:bg-slate-800 rounded mb-2" />
-    <div className="w-28 h-8 bg-slate-200 dark:bg-slate-700/60 rounded mb-3" />
+    <div className={`w-24 h-4 bg-slate-100 dark:bg-slate-800 rounded ${compact ? 'mb-1' : 'mb-2'}`} />
+    <div className={`w-28 ${compact ? 'h-6' : 'h-8'} bg-slate-200 dark:bg-slate-700/60 rounded ${compact ? 'mb-2' : 'mb-3'}`} />
     <div className="w-20 h-4 bg-slate-100 dark:bg-slate-800 rounded" />
   </div>
 );

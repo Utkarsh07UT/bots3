@@ -10,3 +10,8 @@ typing_extensions==4.16.0
 fastapi==0.135.3
 uvicorn==0.38.0
 requests==2.32.5
+web3==6.20.0
+eth-typing<4.2.0
+jinja2==3.1.6
+httpx2
+pytest
