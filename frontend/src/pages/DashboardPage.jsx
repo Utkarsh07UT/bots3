@@ -1,267 +1,57 @@
-import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { Navbar } from "../components/layout/Navbar";
-import { PageHeader } from "../components/layout/PageHeader";
-import { StatCard } from "../components/dashboard/StatCard";
-import { WorldMapWidget } from "../components/dashboard/WorldMapWidget";
-import { ThreatFeed } from "../components/dashboard/ThreatFeed";
-import { ThreatTrendChart } from "../components/dashboard/ThreatTrendChart";
-import { ThreatDistributionChart } from "../components/dashboard/ThreatDistributionChart";
-import { SecurityInsightPanel } from "../components/dashboard/SecurityInsightPanel";
-import { IncidentsView } from "../components/views/IncidentsView";
-import { SystemArchitectureView } from "../components/views/SystemArchitectureView";
-
-import { Toast } from "../components/common/Toast";
-import { AIAssistantBot } from "../components/dashboard/AIAssistantBot";
-
+import { useMemo, useState } from "react";
+import { Activity, AlertTriangle, Bot, LayoutDashboard, LogOut, Monitor, RefreshCw, Search, Shield, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { useSocData } from "../hooks/useSocData";
 
-// Framer motion stagger animation variants
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.07,
-      delayChildren: 0.05,
-    },
-  },
-};
+const pages = [
+  ["overview", "Overview", LayoutDashboard], ["feed", "Live Feed", Activity], ["alerts", "Alerts", AlertTriangle], ["hosts", "Hosts", Monitor], ["models", "Models", Bot],
+];
+const severityStyle = { CRITICAL: "border-red-500/30 bg-red-500/10 text-red-300", HIGH: "border-orange-500/30 bg-orange-500/10 text-orange-300", MEDIUM: "border-amber-500/30 bg-amber-500/10 text-amber-300", LOW: "border-sky-500/30 bg-sky-500/10 text-sky-300" };
+const severity = (value) => (value || "LOW").toUpperCase();
+const alertTime = (value) => value ? new Date(value).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+const confidence = (alert) => alert.confidence ?? alert.confidence_score ?? alert.probability ?? null;
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 18 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.35,
-      ease: [0.16, 1, 0.3, 1],
-    },
-  },
-};
+function Badge({ value }) { const label = severity(value); return <span className={`inline-flex rounded border px-1.5 py-0.5 font-mono text-[10px] font-semibold ${severityStyle[label] || severityStyle.LOW}`}>{label}</span>; }
+function Empty({ text }) { return <div className="grid min-h-40 place-items-center text-sm text-slate-500">{text}</div>; }
 
-export const DashboardPage = () => {
-  const [activeTab, setActiveTab] = useState("overview");
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState("2 min ago");
-  const [isLoadingSkeletons, setIsLoadingSkeletons] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null);
-  const [toastType, setToastType] = useState("success");
-  const { stats, feed, trend, distribution, insight, isLoading, error, refresh } = useSocData();
+function Details({ alert, onClose }) {
+  if (!alert) return null;
+  const raw = alert.raw || alert;
+  return <aside className="w-80 shrink-0 border-l border-slate-800 bg-[#101620] p-5">
+    <div className="mb-5 flex items-start justify-between gap-4"><div><p className="text-xs uppercase tracking-wider text-slate-500">Alert detail</p><h2 className="mt-1 text-sm font-semibold text-slate-100">{raw.title || raw.attack_type || "Threat alert"}</h2></div><button onClick={onClose} className="text-slate-400 hover:text-white"><X size={17} /></button></div>
+    <Badge value={raw.severity} />
+    <dl className="mt-5 space-y-4 text-sm"><div><dt>Threat type</dt><dd>{raw.attack_type || "Unknown"}</dd></div><div><dt>Source</dt><dd className="font-mono">{raw.source_ip || "—"}</dd></div><div><dt>Destination</dt><dd className="font-mono">{raw.target_ip || raw.destination || "—"}</dd></div><div><dt>Observed</dt><dd>{alertTime(raw.created_at)}</dd></div><div><dt>Confidence</dt><dd>{confidence(raw) == null ? "Not reported" : `${Math.round(Number(confidence(raw)) * (Number(confidence(raw)) <= 1 ? 100 : 1))}%`}</dd></div><div><dt>Status</dt><dd>{raw.status || "NEW"}</dd></div></dl>
+  </aside>;
+}
 
-  const showToast = (message, type = "success") => {
-    setToastMessage(message);
-    setToastType(type);
-  };
+function AlertTable({ items, selected, onSelect, dense = false }) {
+  return <div className="overflow-auto"><table className={`w-full text-left text-xs ${dense ? "font-mono" : ""}`}><thead className="sticky top-0 bg-[#141b27] text-[10px] uppercase tracking-wider text-slate-500"><tr>{dense && <th className="px-3 py-2">No.</th>}<th className="px-3 py-2">Time</th><th className="px-3 py-2">Source</th><th className="px-3 py-2">Destination</th><th className="px-3 py-2">Threat</th><th className="px-3 py-2">Severity</th><th className="px-3 py-2">Confidence</th>{dense && <th className="px-3 py-2">Info</th>}</tr></thead><tbody className="divide-y divide-slate-800/80">{items.map((item, index) => { const raw = item.raw || item; const active = (selected?.id || selected?.alert_id) === (item.id || raw.id || raw.alert_id); const destination = raw.target_ip || item.destination || "—"; return <tr key={item.id || raw.alert_id || index} onClick={() => onSelect(item)} className={`cursor-pointer transition hover:bg-slate-800/60 ${active ? "bg-sky-400/5" : ""}`}><td className="px-3 py-2.5 text-slate-500">{dense && index + 1}{!dense && alertTime(raw.created_at)}</td>{dense && <td className="px-3 py-2.5 text-slate-400">{alertTime(raw.created_at)}</td>}<td className="px-3 py-2.5 text-slate-300">{raw.source_ip || item.source || "—"}</td><td className="px-3 py-2.5 text-slate-300">{destination}</td><td className="px-3 py-2.5 text-slate-200">{raw.attack_type || item.title || "Unknown"}</td><td className="px-3 py-2.5"><Badge value={raw.severity || item.severity} /></td><td className="px-3 py-2.5 text-slate-400">{confidence(raw) == null ? "—" : `${Math.round(Number(confidence(raw)) * (Number(confidence(raw)) <= 1 ? 100 : 1))}%`}</td>{dense && <td className="max-w-56 truncate px-3 py-2.5 text-slate-500">{raw.title || raw.status || "Alert observed"}</td>}</tr>; })}</tbody></table>{!items.length && <Empty text="No alerts match this view." />}</div>;
+}
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await refresh();
-    setIsRefreshing(false);
-    setLastSyncTime("Just now");
-    showToast("SOC telemetry refreshed from Supabase.", "success");
-  };
+export function DashboardPage() {
+  const { user, signOut } = useAuth(); const navigate = useNavigate();
+  const { feed, botMetrics = [], isLoading, error, refresh } = useSocData();
+  const [page, setPage] = useState("overview"); const [query, setQuery] = useState(""); const [selected, setSelected] = useState(null); const [userOpen, setUserOpen] = useState(false);
+  const filtered = useMemo(() => feed.filter((item) => JSON.stringify(item.raw || item).toLowerCase().includes(query.toLowerCase())), [feed, query]);
+  const hosts = useMemo(() => Object.values(feed.reduce((all, item) => { const raw = item.raw || item; const name = raw.target_ip || raw.source_ip || "Unknown host"; const entry = all[name] || { name, alerts: 0, latest: raw.created_at }; entry.alerts += 1; if (new Date(raw.created_at) > new Date(entry.latest)) entry.latest = raw.created_at; all[name] = entry; return all; }, {})).sort((a, b) => b.alerts - a.alerts), [feed]);
+  const title = pages.find(([id]) => id === page)?.[1] || "Overview";
+  const criticalHigh = feed.filter((item) => ["CRITICAL", "HIGH"].includes(severity((item.raw || item).severity || item.severity))).length;
+  const topThreat = useMemo(() => { const counts = {}; feed.forEach((item) => { const label = (item.raw || item).attack_type || item.title || "Unknown"; counts[label] = (counts[label] || 0) + 1; }); return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—"; }, [feed]);
+  const logout = async () => { await signOut(); navigate("/login"); };
+  return <div className="flex min-h-screen bg-[#0b1018] text-slate-200">
+    <nav className="flex w-52 shrink-0 flex-col border-r border-slate-800 bg-[#0d131d] px-3 py-4"><button onClick={() => setPage("overview")} className="mb-8 flex items-center gap-2 px-2 text-left"><span className="grid h-7 w-7 place-items-center rounded-md bg-sky-400/10 text-sky-300"><Shield size={16} /></span><span className="font-semibold tracking-tight">UniThreat</span></button><div className="space-y-1">{pages.map(([id, label, Icon]) => <button key={id} onClick={() => { setPage(id); setSelected(null); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition ${page === id ? "bg-slate-800 text-white" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"}`}><Icon size={16} />{label}</button>)}</div><div className="mt-auto border-t border-slate-800 pt-3"><p className="flex items-center gap-2 px-3 text-xs text-emerald-400"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Telemetry connected</p></div></nav>
+    <div className="min-w-0 flex-1"><header className="flex h-14 items-center justify-between border-b border-slate-800 px-6"><h1 className="text-sm font-semibold">{title}</h1><div className="relative"><button onClick={() => setUserOpen(!userOpen)} className="flex items-center gap-2 text-xs text-slate-400"><span className="grid h-7 w-7 place-items-center rounded-full bg-slate-700 text-slate-200">{(user?.email || "U")[0].toUpperCase()}</span>{user?.email || "Analyst"}</button>{userOpen && <div className="absolute right-0 top-9 z-20 w-40 rounded-md border border-slate-700 bg-[#141b27] p-1 shadow-xl"><button onClick={logout} className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs text-slate-300 hover:bg-slate-800"><LogOut size={14} />Sign out</button></div>}</div></header>
+      <main className="p-6">{error && <div className="mb-5 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">{error}</div>}
+        {page === "overview" && <Overview feed={feed} criticalHigh={criticalHigh} hosts={hosts} topThreat={topThreat} onSelect={(a) => { setSelected(a); setPage("alerts"); }} />}
+        {page === "feed" && <DataPage title="Packet and detection stream" query={query} setQuery={setQuery} refresh={refresh} loading={isLoading}><AlertTable items={filtered} selected={selected} onSelect={setSelected} dense /></DataPage>}
+        {page === "alerts" && <DataPage title="Alert queue" query={query} setQuery={setQuery} refresh={refresh} loading={isLoading}><AlertTable items={filtered} selected={selected} onSelect={setSelected} /></DataPage>}
+        {page === "hosts" && <Hosts hosts={hosts} feed={feed} selected={selected} onSelect={setSelected} />}
+        {page === "models" && <Models metrics={botMetrics} />}
+      </main></div>{selected && !["overview", "hosts"].includes(page) && <Details alert={selected} onClose={() => setSelected(null)} />}</div>;
+}
 
-  const handleExport = (format = "csv") => {
-    // TODO: replace with API call: GET /api/v1/soc/reports/export?format=${format}
-    if (format === "json") {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ stats, feed, trend, distribution }, null, 2));
-      const downloadAnchor = document.createElement("a");
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `TheThirdEYE_SOC_Export_${new Date().toISOString().slice(0, 10)}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      showToast("Exported TheThirdEYE raw telemetry JSON payload.", "info");
-    } else if (format === "pdf") {
-      window.print();
-      showToast("Opening TheThirdEYE executive PDF print briefing...", "info");
-    } else {
-      const headers = "Metric,Value,Trend,Sentiment\n";
-      const rows = stats.map((s) => `"${s.label}","${s.displayValue}","${s.trend}","${s.trendSentiment}"`).join("\n");
-      const csvBlob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(csvBlob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `TheThirdEYE_SOC_Summary_${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast("TheThirdEYE SOC summary report (CSV) downloaded successfully.", "success");
-    }
-  };
-
-  const handleActionToggle = (actionTitle, completed) => {
-    if (completed) {
-      showToast(`Action item marked complete: "${actionTitle}"`, "success");
-    } else {
-      showToast(`Action item reopened: "${actionTitle}"`, "info");
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-[#F5F6FA] dark:bg-[#0B0E14] text-slate-800 dark:text-[#E4E6EB] flex flex-col antialiased selection:bg-blue-500/20 selection:text-blue-500 transition-colors duration-300 relative">
-      
-      {/* Subtle Background Cyber Ambient Grid & Glow Mesh */}
-      <div className="fixed inset-0 cyber-grid-light dark:cyber-grid-dark pointer-events-none opacity-60 z-0" />
-      <div className="fixed top-0 left-1/4 w-96 h-96 bg-blue-500/5 dark:bg-blue-600/10 rounded-full blur-3xl pointer-events-none z-0" />
-      <div className="fixed bottom-0 right-1/4 w-96 h-96 bg-indigo-500/5 dark:bg-indigo-600/10 rounded-full blur-3xl pointer-events-none z-0" />
-
-      {/* TOP NAVBAR */}
-      <Navbar activeTab={activeTab} onTabChange={setActiveTab} activeIncidents={insight?.active || 0} />
-
-      {/* MAIN CONTENT WRAPPER */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
-        
-        {/* PAGE HEADER TOOLBAR */}
-        <PageHeader
-          activeTab={activeTab}
-          onRefresh={handleRefresh}
-          isRefreshing={isRefreshing}
-          lastSyncTime={lastSyncTime}
-          onExport={handleExport}
-          isLoadingSkeletons={isLoadingSkeletons}
-          onToggleSkeletons={() => setIsLoadingSkeletons(!isLoadingSkeletons)}
-        />
-
-        {error && (
-          <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-200">
-            Live data is unavailable: {error}
-          </div>
-        )}
-
-        {/* OVERVIEW DASHBOARD VIEW WITH FRAMER MOTION ANIMATION */}
-        {activeTab === "overview" && (
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
-            className="flex flex-col xl:flex-row gap-6"
-          >
-            {/* LEFT SIDEBAR: STAT CARDS (Vertically) */}
-            <motion.section 
-              variants={itemVariants} 
-              aria-label="Security Operations Key Metrics"
-              className="xl:w-64 flex flex-col gap-3 shrink-0"
-            >
-              {stats.map((stat) => (
-                <StatCard
-                  key={stat.id}
-                  stat={stat}
-                  isLoading={isLoading || isLoadingSkeletons}
-                  compact={true}
-                  onClick={() => {
-                    if (stat.id === "critical_incidents") setActiveTab("incidents");
-                    if (stat.id === "active_threats") setActiveTab("threat-feed");
-                  }}
-                />
-              ))}
-            </motion.section>
-
-            {/* RIGHT MAIN AREA */}
-            <div className="flex-1 flex flex-col gap-6 min-w-0">
-              {/* TWO-COLUMN: GLOBAL THREAT MAP & LIVE THREAT FEED */}
-              <motion.section variants={itemVariants} aria-label="Live Threat Map and Telemetry Feed">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-                  
-                  {/* Left (Larger): Global Threat Activity World Map */}
-                  <div className="lg:col-span-8 flex flex-col">
-                    <WorldMapWidget isLoading={isLoading || isLoadingSkeletons} alerts={feed} />
-                  </div>
-
-                  {/* Right (Smaller): Live Threats Feed */}
-                  <div className="lg:col-span-4 flex flex-col">
-                    <ThreatFeed
-                      isLoading={isLoading || isLoadingSkeletons}
-                      items={feed}
-                      onSelectThreat={(threat) => {
-                        showToast(`Opened telemetry investigation for ${threat.title} (${threat.source})`, "info");
-                      }}
-                    />
-                  </div>
-
-                </div>
-              </motion.section>
-
-              {/* BOTTOM ROW: THREE COLUMNS */}
-              <motion.section variants={itemVariants} aria-label="Trend Analytics and Security Insights">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  
-                  {/* Threat Trend 24h Area Chart */}
-                  <div className="flex flex-col">
-                    <ThreatTrendChart isLoading={isLoading || isLoadingSkeletons} data={trend} />
-                  </div>
-
-                  {/* Threat Distribution Donut Chart */}
-                  <div className="flex flex-col">
-                    <ThreatDistributionChart isLoading={isLoading || isLoadingSkeletons} data={distribution} total={feed.length} />
-                  </div>
-
-                  {/* Security Insight Panel */}
-                  <div className="flex flex-col">
-                    <SecurityInsightPanel
-                      isLoading={isLoading || isLoadingSkeletons}
-                      insight={insight}
-                      onActionToggle={handleActionToggle}
-                    />
-                  </div>
-
-                </div>
-              </motion.section>
-            </div>
-          </motion.div>
-        )}
-
-        {/* AUXILIARY TAB VIEWS */}
-        {activeTab === "threat-feed" && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-              <div className="lg:col-span-8">
-                <WorldMapWidget isLoading={isLoading || isLoadingSkeletons} alerts={feed} />
-              </div>
-              <div className="lg:col-span-4">
-                <ThreatFeed isLoading={isLoading || isLoadingSkeletons} items={feed} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "incidents" && (
-          <IncidentsView onBackToOverview={() => setActiveTab("overview")} items={feed} />
-        )}
-
-        {activeTab === "system-status" && (
-          <SystemArchitectureView />
-        )}
-
-
-
-
-      </main>
-
-      {/* FOOTER */}
-      <footer className="mt-12 py-6 border-t border-slate-200/80 dark:border-white/[0.08] bg-white/50 dark:bg-[#12151C]/50 backdrop-blur-md text-xs text-slate-500 dark:text-slate-400">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-700 dark:text-slate-200">TheThirdEYE</span>
-            <span>—</span>
-            <span>Enterprise Security Telemetry & Autonomous Cyber Defense</span>
-          </div>
-          <div className="flex items-center gap-4 font-mono text-[11px]">
-            <span>ENGINE: v4.8.2-SEC</span>
-            <span>•</span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-bold">ALL SYSTEMS NOMINAL</span>
-          </div>
-        </div>
-      </footer>
-
-      {/* TOAST ALERTS */}
-      <Toast
-        message={toastMessage}
-        type={toastType}
-        onClose={() => setToastMessage(null)}
-      />
-
-      <AIAssistantBot />
-    </div>
-  );
-};
+function Overview({ feed, criticalHigh, hosts, topThreat, onSelect }) { const cards = [["Total Alerts", feed.length], ["Critical / High", criticalHigh], ["Hosts Affected", hosts.length], ["Top Threat", topThreat]]; return <><div className="grid grid-cols-4 gap-4">{cards.map(([label, value]) => <section key={label} className="rounded-lg border border-slate-800 bg-[#101620] p-4"><p className="text-xs text-slate-500">{label}</p><p className="mt-2 truncate text-xl font-semibold text-slate-100">{value}</p></section>)}</div><section className="mt-5 rounded-lg border border-slate-800 bg-[#101620] p-4"><p className="text-xs font-medium text-slate-300">Current summary</p><p className="mt-2 text-sm text-slate-400">{criticalHigh} alerts require priority review across {hosts.length} observed hosts.</p></section><section className="mt-5 overflow-hidden rounded-lg border border-slate-800 bg-[#101620]"><div className="flex items-center justify-between border-b border-slate-800 px-4 py-3"><h2 className="text-sm font-medium">Recent alerts</h2><span className="text-xs text-slate-500">Latest 8</span></div><AlertTable items={feed.slice(0, 8)} onSelect={onSelect} /></section></>; }
+function DataPage({ title, query, setQuery, refresh, loading, children }) { return <section className="overflow-hidden rounded-lg border border-slate-800 bg-[#101620]"><div className="flex items-center justify-between gap-4 border-b border-slate-800 p-3"><div className="relative w-80"><Search className="absolute left-2.5 top-2 text-slate-500" size={15} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filter source, host, or threat" className="w-full rounded-md border border-slate-700 bg-[#0b1018] py-1.5 pl-8 pr-3 text-xs outline-none placeholder:text-slate-600 focus:border-sky-500" /></div><button onClick={refresh} className="flex items-center gap-2 text-xs text-slate-400 hover:text-white"><RefreshCw size={14} className={loading ? "animate-spin" : ""} />Refresh</button></div><div className="px-3 py-2 text-xs text-slate-500">{title}</div>{children}</section>; }
+function Hosts({ hosts, feed, selected, onSelect }) { const activeHost = selected?.name || selected?.raw?.target_ip; const alerts = activeHost ? feed.filter((item) => ((item.raw || item).target_ip || (item.raw || item).source_ip) === activeHost) : []; return <div className="grid grid-cols-[minmax(0,1fr)_20rem] gap-5"><section className="overflow-hidden rounded-lg border border-slate-800 bg-[#101620]"><div className="border-b border-slate-800 px-4 py-3 text-sm font-medium">Observed hosts</div>{hosts.map((host) => <button key={host.name} onClick={() => onSelect(host)} className={`flex w-full items-center justify-between border-b border-slate-800/80 px-4 py-3 text-left text-sm hover:bg-slate-800/60 ${activeHost === host.name ? "bg-sky-400/5" : ""}`}><span className="font-mono text-slate-300">{host.name}</span><span className="text-xs text-slate-500">{host.alerts} alerts</span></button>)}{!hosts.length && <Empty text="No hosts observed." />}</section><section className="rounded-lg border border-slate-800 bg-[#101620] p-4"><p className="text-xs uppercase tracking-wider text-slate-500">Host detail</p>{activeHost ? <><h2 className="mt-2 font-mono text-sm">{activeHost}</h2><p className="mt-4 text-xs text-slate-500">Recent activity</p><div className="mt-2 space-y-2">{alerts.slice(0, 6).map((a, i) => <div key={i} className="border-l border-slate-700 pl-2 text-xs"><p>{(a.raw || a).attack_type || a.title}</p><p className="mt-0.5 text-slate-500">{alertTime((a.raw || a).created_at)}</p></div>)}</div></> : <p className="mt-5 text-sm text-slate-500">Select a host to inspect its activity.</p>}</section></div>; }
+function Models({ metrics }) { const detectors = ["Network detector", "Malware detector", "Phishing detector", "Anomaly detector", "Threat classifier", "Host monitor"]; return <section className="overflow-hidden rounded-lg border border-slate-800 bg-[#101620]"><div className="grid grid-cols-[1fr_7rem_10rem] border-b border-slate-800 px-4 py-3 text-[10px] uppercase tracking-wider text-slate-500"><span>Detector</span><span>Status</span><span>Last run</span></div>{detectors.map((name, index) => { const metric = metrics[index]; const healthy = ["HEALTHY", "ONLINE", "READY"].includes((metric?.status || "").toUpperCase()); return <div key={name} className="grid grid-cols-[1fr_7rem_10rem] border-b border-slate-800/80 px-4 py-3 text-sm"><span>{metric?.bot_name || metric?.name || name}</span><span className={healthy ? "text-emerald-400" : "text-slate-500"}>{metric ? (metric.status || "Ready") : "Not reported"}</span><span className="text-xs text-slate-500">{metric?.last_heartbeat ? alertTime(metric.last_heartbeat) : "—"}</span></div>; })}</section>; }

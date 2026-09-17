@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { beginOAuth, getUser, signInWithPassword, signOut as supabaseSignOut, signUp } from "../api/supabase";
+import { beginOAuth, getUser, signOut as supabaseSignOut } from "../api/supabase";
 
 const AuthContext = createContext(null);
 const storageKey = "thethirdeye_session";
@@ -41,25 +41,6 @@ export function AuthProvider({ children }) {
     restore();
   }, []);
 
-  const completeAuth = async (request) => {
-    setIsLoading(true);
-    try {
-      const nextSession = await request();
-      if (!nextSession?.access_token) return { data: nextSession, error: null };
-      const nextUser = nextSession.user || await getUser(nextSession.access_token);
-      storeSession(nextSession);
-      setSession(nextSession);
-      setUser(nextUser);
-      return { data: { session: nextSession, user: nextUser }, error: null };
-    } catch (error) {
-      return { data: null, error };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const signInWithEmail = (email, password) => completeAuth(() => signInWithPassword(email, password));
-  const signUpWithEmail = (email, password, fullName) => completeAuth(() => signUp(email, password, fullName));
   const signInWithOAuth = async (provider) => {
     try {
       beginOAuth(provider);
@@ -83,7 +64,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  return <AuthContext.Provider value={{ user, session, isLoading, isAuthenticated: Boolean(user), signInWithEmail, signUpWithEmail, signInWithOAuth, signOut, getSession: () => session }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, session, isLoading, isAuthenticated: Boolean(user), signInWithOAuth, signOut, getSession: () => session }}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => useContext(AuthContext);

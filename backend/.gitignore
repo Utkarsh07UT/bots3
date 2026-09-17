@@ -107,14 +107,8 @@ data/flows/*.parquet
 *.sqlite3
 *.db
 *.log
-!data/raw/**/*.log
-!data/processed/**/*.log
 logs/
 *.pid
-tmp/
-.tmp/
-*.tmp
-*.bak
 
 # --- Docker & Infrastructure ---
 .docker/

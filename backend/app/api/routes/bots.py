@@ -1,23 +1,17 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-
-from app.db.session import SessionLocal, get_db
-from app.db.models import BotMetric
-from app.schemas.bot_result import BotMetricResponse
-from app.services.bot_health import refresh_bot_metrics
+from fastapi import APIRouter
+import time
 
 router = APIRouter()
 
+MOCK_BOT_HEALTH = [
+    {"bot_name": "ddos_bot", "status": "healthy", "last_active": time.time(), "throughput": 1200},
+    {"bot_name": "beaconing_bot", "status": "healthy", "last_active": time.time(), "throughput": 850},
+    {"bot_name": "dga_dns_bot", "status": "degraded", "last_active": time.time() - 30, "throughput": 200},
+    {"bot_name": "encrypted_malware_bot", "status": "healthy", "last_active": time.time(), "throughput": 640},
+    {"bot_name": "scanning_bot", "status": "healthy", "last_active": time.time(), "throughput": 1100},
+    {"bot_name": "exfiltration_bot", "status": "offline", "last_active": time.time() - 300, "throughput": 0},
+]
 
-@router.get("/bots/health", response_model=list[BotMetricResponse])
-def get_bot_health(db: Session = Depends(get_db)):
-    metrics = db.query(BotMetric).all()
-    if not metrics:
-        # Make the first dashboard request useful even before the periodic monitor's first run.
-        refresh_bot_metrics()
-        refreshed_db = SessionLocal()
-        try:
-            metrics = refreshed_db.query(BotMetric).all()
-        finally:
-            refreshed_db.close()
-    return metrics
+@router.get("/bots/health")
+def get_bot_health():
+    return MOCK_BOT_HEALTH

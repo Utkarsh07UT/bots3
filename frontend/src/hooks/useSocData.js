@@ -101,5 +101,5 @@ export function useSocData() {
     };
   }, [alerts, botMetrics]);
 
-  return { ...data, isLoading, error, refresh };
+  return { ...data, botMetrics, isLoading, error, refresh };
 }

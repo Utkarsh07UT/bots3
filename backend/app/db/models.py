@@ -1,19 +1,7 @@
-from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Numeric, BigInteger, JSON, ForeignKey
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
-from sqlalchemy.types import TypeDecorator
+from sqlalchemy import Column, String, Float, DateTime, JSON, Integer, Numeric, BigInteger, Boolean, ForeignKey, ARRAY
+from app.db.session import Base
 import uuid
 import datetime
-from app.db.session import Base
-
-class ArrayType(TypeDecorator):
-    """Platform-independent Array type that stores list in JSON on SQLite and ARRAY on PostgreSQL."""
-    impl = JSON
-
-    def load_dialect_impl(self, dialect):
-        if dialect.name == 'postgresql':
-            return dialect.type_descriptor(ARRAY(String))
-        else:
-            return dialect.type_descriptor(JSON)
 
 class NetworkFlow(Base):
     __tablename__ = "network_flows"
@@ -54,7 +42,7 @@ class ThreatAlert(Base):
     target_ip = Column(String(45), nullable=False)
     target_port = Column(Integer)
     confidence_score = Column(Numeric(5, 4), nullable=False)
-    contributing_bots = Column(ArrayType, nullable=False, default=[])
+    contributing_bots = Column(ARRAY(String), nullable=False, default=[])
     bot_scores = Column(JSON, nullable=False, default={})
     evidence = Column(JSON, nullable=False, default={})
     status = Column(String(30), nullable=False, default="NEW")  # NEW, INVESTIGATING, RESOLVED, FALSE_POSITIVE

@@ -43,22 +43,6 @@ export const fetchAlerts = () =>
 export const fetchBotMetrics = () =>
   supabaseRequest("/rest/v1/bot_metrics?select=*&order=last_heartbeat.desc");
 
-export async function signInWithPassword(email, password) {
-  return supabaseRequest("/auth/v1/token?grant_type=password", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-}
-
-export async function signUp(email, password, fullName) {
-  return supabaseRequest("/auth/v1/signup", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, data: { full_name: fullName } }),
-  });
-}
-
 export async function getUser(accessToken) {
   return supabaseRequest("/auth/v1/user", {
     headers: { Authorization: `Bearer ${accessToken}` },

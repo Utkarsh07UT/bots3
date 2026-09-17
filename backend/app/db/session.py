@@ -1,15 +1,11 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
-from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env from backend directory or root directory
-backend_dir = Path(__file__).resolve().parent.parent.parent
-load_dotenv(backend_dir / ".env")
-load_dotenv(backend_dir.parent / ".env")
+load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test_threatlens.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./unithreat_demo.db")
 
 # Render uses postgres:// in env vars, but SQLAlchemy 1.4+ requires postgresql://
 if DATABASE_URL.startswith("postgres://"):

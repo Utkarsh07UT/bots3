@@ -11,7 +11,7 @@ export const ProtectedRoute = ({ children }) => {
       <div className="min-h-screen flex items-center justify-center bg-[#F5F6FA] dark:bg-[#0B0E14] text-slate-800 dark:text-slate-200">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 rounded-full border-4 border-slate-200 dark:border-slate-800 border-t-blue-500 animate-spin" />
-          <span className="text-xs font-mono text-slate-500">Validating SOC Session...</span>
+          <span className="text-xs font-mono text-slate-500">Validating session…</span>
         </div>
       </div>
     );
